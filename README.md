@@ -1,3 +1,3 @@
-# 123timelock-server
+# 123email-lock-server
 
 Created with CodeSandbox
