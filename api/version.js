@@ -1,1 +1,1 @@
-module.exports = { version: "v1" };
+module.exports = { version: "email-lock v1 25/03/2022" };
