@@ -18,6 +18,7 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
 const rateLimit = require("express-rate-limit");
+const { getEmailBoxes, runWithIMAP } = require("./mail");
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 20,
@@ -31,10 +32,16 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // [token times] => {salt=time+rnd, tokens=[{time,hmac(salt+time)}] }
-app.post("/api/setup", (req, resp) => {
-  var tokens = req.body["time"];
-  var result = {};
-  resp.send(result);
+app.get("/api/listboxes", async (req, resp) => {
+  const timeStart = Date.now();
+  try {
+    let boxes = await runWithIMAP(async (imap) => {
+      return await getEmailBoxes(imap);
+    });
+    resp.send({ err: null, result: boxes, timespan: Date.now() - timeStart });
+  } catch (error) {
+    resp.send({ err: error, result: null, timespan: Date.now() - timeStart });
+  }
 });
 
 app.get("/api/", (req, resp) => {

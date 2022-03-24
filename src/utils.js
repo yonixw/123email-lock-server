@@ -1,6 +1,6 @@
 const parseTime = require("parse-duration");
 
-function __deprecated__randString(length) {
+function randString(length) {
   var result = [];
   var characters = "abcdefghijklmnopqrstuvwxyz0123456789";
   var charactersLength = characters.length;
@@ -10,10 +10,6 @@ function __deprecated__randString(length) {
     );
   }
   return result.join("");
-}
-
-function __depracated__addInLast(str, n = 6) {
-  return str.substr(0, str.length - n) + "_" + str.substr(str.length - n);
 }
 
 function padDigits(number, digits) {
@@ -71,6 +67,7 @@ function undoSafeB64_32(b64string) {
 }
 
 module.exports = {
+  randString,
   padDigits,
 
   toSafeURL,
