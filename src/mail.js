@@ -15,18 +15,26 @@ const alias2address = (alias) => {
 };
 
 // const filter = ["UNSEEN", ["SINCE", new Date()]];
-const getFilter = (alias) => [["TO", alias2address(alias)]];
+const getTimeFilter = (address, sinceDate = new Date()) => [
+  ["TO", address],
+  ["SINCE", sinceDate]
+];
+
+const getIDFilter = (address, msgID) => [
+  ["TO", address],
+  ["HEADER", "Message-ID", msgID]
+];
 
 const runWithIMAP = (cb) => {
   // cb type: (imap)=>Promise<?>
-  const connectionTag = randString(10);
+  const connectionTag = "\t[*]" + randString(10) + ": ";
   return new Promise((ok, bad) => {
     try {
       const imap = new Imap(imapConfig);
       imap.once("ready", () => {
         console.log(connectionTag, "Connection ready");
         try {
-          cb(imap)
+          cb(imap, connectionTag)
             .then((e) => ok(e))
             .catch((err) => bad(err))
             .finally(() => imap.end());
@@ -96,8 +104,76 @@ function getEmailBoxes(imap) {
   });
 }
 
+function searchInBox(
+  imap,
+  boxname,
+  filter,
+  connectionTag,
+  mapEmail = (e) => e,
+  deleteAll = false
+) {
+  let searchResults = [];
+  return new Promise((ok, bad) => {
+    imap.openBox(boxname, false, () => {
+      imap.search(filter, (err, uuid_results) => {
+        // @remind: You get list of uuid then fetch each one!
+
+        console.log(connectionTag, `Got ${uuid_results.length} search results`);
+
+        if (err || !uuid_results) {
+          return bad(err);
+        }
+
+        if (uuid_results.length === 0) {
+          return ok(searchResults);
+        }
+
+        let counter = 0;
+        const fetchMailProcess = imap.fetch(uuid_results, { bodies: "" });
+        fetchMailProcess.on("message", (msg) => {
+          counter++;
+          msg.on("body", (stream) => {
+            simpleParser(stream, async (err, parsed) => {
+              //const {from, to, date, subject, textAsHtml, text, html, messageId} = parsed;
+              if (err) {
+                console.log(connectionTag, `Error parsing an email: ${err}`);
+                searchResults.push(`Error parsing an email: ${err}`);
+              } else {
+                searchResults.push(mapEmail(parsed));
+              }
+              console.log(connectionTag, "Processed msg", counter);
+
+              if (searchResults.length === uuid_results.length) {
+                console.log(connectionTag, "Done processing Count=" + counter);
+                return ok(searchResults);
+              }
+            });
+          });
+
+          msg.once("attributes", (attrs) => {
+            const { uid } = attrs;
+            if (deleteAll) {
+              imap.addFlags(uid, "Deleted");
+            }
+          });
+        });
+        fetchMailProcess.once("error", (err) => {
+          console.log(connectionTag, `Error in search process: ${err}`);
+          return bad(err);
+        });
+        fetchMailProcess.once("end", () => {
+          console.log(connectionTag, "Done fetching Count=" + counter);
+        });
+      });
+    });
+  });
+}
+
 module.exports = {
   alias2address,
   runWithIMAP,
-  getEmailBoxes
+  getEmailBoxes,
+  getTimeFilter,
+  getIDFilter,
+  searchInBox
 };

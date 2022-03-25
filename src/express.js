@@ -16,6 +16,15 @@ const {
   get10MinCode,
   verifyEmailCode
 } = require("./crypto");
+const {
+  getEmailBoxes,
+  runWithIMAP,
+  alias2address,
+  getIDFilter,
+  getTimeFilter,
+  searchInBox
+} = require("./mail");
+
 const prettyTime = require("pretty-ms");
 
 var express = require("express");
@@ -35,7 +44,6 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
 const rateLimit = require("express-rate-limit");
-const { getEmailBoxes, runWithIMAP, alias2address } = require("./mail");
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 20,
@@ -48,8 +56,10 @@ const limiter = rateLimit({
 //  apply to all requests
 app.use(limiter);
 
-// [token times] => {salt=time+rnd, tokens=[{time,hmac(salt+time)}] }
 app.get("/api/listboxes", async (req, resp) => {
+  // @remind: Use this EP to know the exact names of Inbox and Spam\Junk
+  //            Some also in UTF-8? like ארכיון
+
   const timeStart = Date.now();
   try {
     let boxes = await runWithIMAP(async (imap) => {
@@ -97,9 +107,108 @@ app.post("/api/verifycode", (req, resp) => {
   });
 });
 
-// TODO:
-// * list TO, since 10 minutes ago (not connected to code)
-// * delete + read
+async function MailProcessReq(
+  req,
+  resp,
+  filter,
+  processParsed,
+  deleteAllAfter = false
+) {
+  const timeStart = Date.now();
+  const { email, code, hashproof, boxname } = req.body;
+
+  let result = [];
+  let error = "init";
+  try {
+    error = null;
+    let isProofValid = verifyEmailCode(email, code, hashproof);
+    if (isProofValid) {
+      result = await runWithIMAP(async (imap, tag) => {
+        return await searchInBox(
+          imap,
+          boxname,
+          filter,
+          tag,
+          processParsed,
+          deleteAllAfter
+        );
+      });
+    } else {
+      resp.send({
+        timespan: Date.now() - timeStart,
+        err: `Proof is not valid, got '${hashproof}' for email '${email}'`,
+        results: []
+      });
+    }
+  } catch (err) {
+    error = `${err}`;
+  }
+
+  resp.send({
+    timespan: Date.now() - timeStart,
+    err: error,
+    results: result
+  });
+}
+
+app.post("/api/getlastday", async (req, resp) => {
+  // @remind:
+  //    It's a limitation of the IMAP protocol.
+  //    The search granularity is only date, not time.
+
+  const { email } = req.body;
+  //
+  let sinceDate = new Date();
+  sinceDate.setDate(sinceDate.getDate() - 1);
+  const filter = getTimeFilter(email, sinceDate);
+  //
+  const processParsed = (email) => {
+    const { from, to, date, subject, messageId } = email;
+    // Return info but mask numbers!
+    return {
+      messageId,
+      from: from.text || from,
+      to: to.text || to,
+      date: date,
+      subject: (subject || "").replace(/[0-9]/g, "X")
+    };
+  };
+  //
+  const deleteAllAfter = false;
+  await MailProcessReq(req, resp, filter, processParsed, deleteAllAfter);
+});
+
+app.post("/api/deleteReadId", async (req, resp) => {
+  const { email, msgid } = req.body;
+  //
+  const filter = getIDFilter(email, msgid || "");
+  //
+  const processParsed = (email) => {
+    const {
+      from,
+      to,
+      date,
+      subject,
+      textAsHtml,
+      text,
+      html,
+      messageId
+    } = email;
+    return {
+      messageId,
+      from: from.text || from,
+      to: to.text || to,
+      date: date,
+      subject: (subject || "").replace(/[0-9]/g, "X"),
+      text,
+      textAsHtml,
+      html
+    };
+  };
+  //
+  const deleteAllAfter = true;
+  await MailProcessReq(req, resp, filter, processParsed, deleteAllAfter);
+});
 
 app.get("/api/", (req, resp) => {
   resp.send("my default home");
