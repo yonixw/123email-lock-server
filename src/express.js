@@ -139,6 +139,7 @@ async function MailProcessReq(
         err: `Proof is not valid, got '${hashproof}' for email '${email}'`,
         results: []
       });
+      return;
     }
   } catch (err) {
     error = `${err}`;
