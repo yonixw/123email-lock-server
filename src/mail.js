@@ -32,7 +32,7 @@ const runWithIMAP = (cb) => {
     try {
       const imap = new Imap(imapConfig);
       imap.once("ready", () => {
-        console.log(connectionTag, "Connection ready");
+        //@ console.log(connectionTag, "Connection ready");
         try {
           cb(imap, connectionTag)
             .then((e) => ok(e))
@@ -44,17 +44,17 @@ const runWithIMAP = (cb) => {
       });
 
       imap.once("error", (err) => {
-        console.log(connectionTag, "Connection error");
+        //@ console.log(connectionTag, "Connection error");
         bad(err);
       });
 
       imap.once("end", () => {
-        console.log(connectionTag, "Connection ended");
+        //@ console.log(connectionTag, "Connection ended");
       });
 
       imap.connect();
     } catch (ex) {
-      console.log(connectionTag, "Genrtal error");
+      //@ console.log(connectionTag, "Genrtal error");
       bad(ex);
     }
   });
@@ -118,7 +118,7 @@ function searchInBox(
       imap.search(filter, (err, uuid_results) => {
         // @remind: You get list of uuid then fetch each one!
 
-        console.log(connectionTag, `Got ${uuid_results.length} search results`);
+        //@ console.log(connectionTag, `Got ${uuid_results.length} search results`);
 
         if (err || !uuid_results) {
           return bad(err);
@@ -136,15 +136,15 @@ function searchInBox(
             simpleParser(stream, async (err, parsed) => {
               //const {from, to, date, subject, textAsHtml, text, html, messageId} = parsed;
               if (err) {
-                console.log(connectionTag, `Error parsing an email: ${err}`);
+                //@ console.log(connectionTag, `Error parsing an email: ${err}`);
                 searchResults.push(`Error parsing an email: ${err}`);
               } else {
                 searchResults.push(mapEmail(parsed));
               }
-              console.log(connectionTag, "Processed msg", counter);
+              //@ console.log(connectionTag, "Processed msg", counter);
 
               if (searchResults.length === uuid_results.length) {
-                console.log(connectionTag, "Done processing Count=" + counter);
+                //@ console.log(connectionTag, "Done processing Count=" + counter);
                 return ok(searchResults);
               }
             });
@@ -158,11 +158,11 @@ function searchInBox(
           });
         });
         fetchMailProcess.once("error", (err) => {
-          console.log(connectionTag, `Error in search process: ${err}`);
+          //@ console.log(connectionTag, `Error in search process: ${err}`);
           return bad(err);
         });
         fetchMailProcess.once("end", () => {
-          console.log(connectionTag, "Done fetching Count=" + counter);
+          //@ console.log(connectionTag, "Done fetching Count=" + counter);
         });
       });
     });
