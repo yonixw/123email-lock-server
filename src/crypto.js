@@ -37,9 +37,16 @@ function get10MinCode() {
 }
 
 function verifyEmailCode(email, code, hashproof) {
+  console.log({
+    email,
+    code,
+    hashproof,
+    calc: hashChallenge("alias", email, code)
+  });
   return (
-    hashChallenge("alias", email, get10MinCode(code)).toLowerCase() ===
-    hashproof.toLowerCase()
+    code === get10MinCode() &&
+    hashChallenge("alias", email, code).toLowerCase() ===
+      hashproof.toLowerCase()
   );
 }
 
