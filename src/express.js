@@ -97,6 +97,10 @@ app.post("/api/verifycode", (req, resp) => {
   });
 });
 
+// TODO:
+// * list TO, since 10 minutes ago (not connected to code)
+// * delete + read
+
 app.get("/api/", (req, resp) => {
   resp.send("my default home");
 });
