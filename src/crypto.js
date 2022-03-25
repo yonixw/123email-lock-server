@@ -37,10 +37,14 @@ function get10MinCode() {
 }
 
 function verifyEmailCode(email, code, hashproof) {
+  // Return true if you give the full secret hash, or hash of  code with secret hash
+  if (!hashproof || !email ) return false;
   return (
-    code === get10MinCode() &&
-    hashChallenge("alias", email, code).toLowerCase() ===
-      hashproof.toLowerCase()
+    (emailAliasSecret(email).toLowerCase() === hashproof.toLowerCase()) 
+    ||
+    ( code === get10MinCode() &&
+    hashChallenge("alias", email, code || "").toLowerCase() ===
+      hashproof.toLowerCase() )
   );
 }
 
