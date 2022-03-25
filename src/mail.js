@@ -97,6 +97,7 @@ function getEmailBoxes(imap) {
 }
 
 module.exports = {
+  alias2address,
   runWithIMAP,
   getEmailBoxes
 };
