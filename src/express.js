@@ -200,7 +200,7 @@ app.post("/api/deleteReadId", async (req, resp) => {
       from: from.text || from,
       to: to.text || to,
       date: date,
-      subject: (subject || "").replace(/[0-9]/g, "X"),
+      subject,
       text,
       textAsHtml,
       html
